@@ -96,6 +96,8 @@ class InstanceGenerator
 
         // Add a generator for each RRULE
         foreach ($rrules as $rrule) {
+            $cloned_rule = clone $rrule;
+            $cloned_rule->setStartDate($seed);
             $r_generators[] = $this->generateFromRule(
                 $rrule,
                 $timezone,
@@ -108,6 +110,8 @@ class InstanceGenerator
 
         // Add a generator for each EXRULE
         foreach ($exrules as $exrule) {
+            $cloned_rule = clone $exrule;
+            $cloned_rule->setStartDate($seed);
             $ex_generators[] = $this->generateFromRule(
                 $exrule,
                 $timezone,
