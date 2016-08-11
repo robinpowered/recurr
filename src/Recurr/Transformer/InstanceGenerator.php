@@ -99,7 +99,7 @@ class InstanceGenerator
             $cloned_rule = clone $rrule;
             $cloned_rule->setStartDate($seed);
             $r_generators[] = $this->generateFromRule(
-                $rrule,
+                $cloned_rule,
                 $timezone,
                 $ignoreCounts
             );
@@ -113,7 +113,7 @@ class InstanceGenerator
             $cloned_rule = clone $exrule;
             $cloned_rule->setStartDate($seed);
             $ex_generators[] = $this->generateFromRule(
-                $exrule,
+                $cloned_rule,
                 $timezone,
                 $ignoreCounts
             );
