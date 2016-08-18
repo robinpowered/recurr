@@ -63,7 +63,7 @@ class InstanceGenerator
      *   represents a date in the middle of the series and using `COUNT` would be cause for an inaccurate end date.
      * @param int|null $iterationLimit An iteration limit that, when provided, will serve as a fail-safe
      *   that stops the generator when the limit is reached to prevent an infinitely large iterator.
-     * @return RecurrenceCollection
+     * @return Generator|DateTime[]
      * @throws MissingData
      */
     public function generate(
@@ -189,7 +189,7 @@ class InstanceGenerator
      *
      * @param DateTime[] $datetimes The dates to be yielded by the generator.
      * @param DateTimeZone $timezone The timezone context to give all the yielded dates.
-     * @return Generator|DateTime
+     * @return Generator|DateTime[]
      */
     private function generateFromDates(array $datetimes, DateTimeZone $timezone)
     {
@@ -214,7 +214,7 @@ class InstanceGenerator
      * @param DateTimeZone $timezone The timezone context to give all the yielded dates.
      * @param bool $ignoreCounts Ignores the `COUNT` constraint of all rules given. This is useful if the `$seed`
      *   represents a date in the middle of the series and using `COUNT` would be cause for an inaccurate end date.
-     * @return Generator|DateTime
+     * @return Generator|DateTime[]
      */
     private function generateFromRule(Rule $rule, DateTimeZone $timezone, $ignoreCounts = false)
     {
