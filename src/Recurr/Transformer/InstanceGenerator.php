@@ -51,8 +51,7 @@ class InstanceGenerator
     /**
      * Returns a generator that yields instances for the given rules and dates.
      *
-     * @param DateTime $seed The seed date that serves as the starting point to recur from. Instances will be
-     *   expanded within the timezone set in this seed.
+     * @param DateTimeZone $timeZone The time zone to expand instances within.
      * @param Rule[] $rrules A collection of iCal RRULE values to expand by.
      * @param DateTime[] $rdates A collection of iCal RDATE values to include in the expansion.
      * @param Rule[] $exrules A collection of iCal EXRULE values to expand and exclude.
@@ -63,11 +62,11 @@ class InstanceGenerator
      *   represents a date in the middle of the series and using `COUNT` would be cause for an inaccurate end date.
      * @param int|null $iterationLimit An iteration limit that, when provided, will serve as a fail-safe
      *   that stops the generator when the limit is reached to prevent an infinitely large iterator.
-     * @return Generator|DateTime[]
+     * @return Generator A generator that yields {@link DateTime} values representing instance start time.
      * @throws MissingData
      */
     public function generate(
-        DateTime $seed,
+        DateTimeZone $timeZone,
         array $rrules = [],
         array $rdates = [],
         array $exrules = [],
@@ -76,14 +75,8 @@ class InstanceGenerator
         $iterationLimit = null
     ) {
         if (empty($rrules) && empty($rdates) && empty($exrules) && empty($exdates)) {
-
-            yield $seed; // Just yield the seed and nothing else, since there is no recurrence.
-
-            return; // Quit the generator.
+            return; // Empty generator.
         }
-
-        // Use the timezone for the seed date.
-        $timezone = $seed->getTimezone();
 
         // An array to hold all the generators for dates that we'll include.
         $r_generators = [];
@@ -92,29 +85,25 @@ class InstanceGenerator
         $ex_generators = [];
 
         // Add a generator for the RDATE collection
-        $r_generators[] = $this->generateFromDates($rdates, $timezone);
+        $r_generators[] = $this->generateFromDates($rdates, $timeZone);
 
         // Add a generator for each RRULE
         foreach ($rrules as $rrule) {
-            $cloned_rule = clone $rrule;
-            $cloned_rule->setStartDate($seed);
             $r_generators[] = $this->generateFromRule(
-                $cloned_rule,
-                $timezone,
+                $rrule,
+                $timeZone,
                 $ignoreCounts
             );
         }
 
         // Add a generator for the EXDATE collection
-        $ex_generators[] = $this->generateFromDates($exdates, $timezone);
+        $ex_generators[] = $this->generateFromDates($exdates, $timeZone);
 
         // Add a generator for each EXRULE
         foreach ($exrules as $exrule) {
-            $cloned_rule = clone $exrule;
-            $cloned_rule->setStartDate($seed);
             $ex_generators[] = $this->generateFromRule(
-                $cloned_rule,
-                $timezone,
+                $exrule,
+                $timeZone,
                 $ignoreCounts
             );
         }
@@ -188,10 +177,10 @@ class InstanceGenerator
      * Returns a generator that provides a given array of dates, copied with the given time zone.
      *
      * @param DateTime[] $datetimes The dates to be yielded by the generator.
-     * @param DateTimeZone $timezone The timezone context to give all the yielded dates.
-     * @return Generator|DateTime[]
+     * @param DateTimeZone $timeZone The timezone context to give all the yielded dates.
+     * @return Generator A generator that yields {@link DateTime} values representing instance start time.
      */
-    private function generateFromDates(array $datetimes, DateTimeZone $timezone)
+    private function generateFromDates(array $datetimes, DateTimeZone $timeZone)
     {
         $compare = function (DateTime $datetime1, DateTime $datetime2) {
             return ($datetime1->getTimestamp() - $datetime2->getTimestamp());
@@ -201,7 +190,8 @@ class InstanceGenerator
 
         foreach ($datetimes as $date) {
             $result = clone $date;
-            $result->setTimezone($timezone);
+            $result->setTimezone($timeZone);
+            $result->getTimestamp(); // Fixes PHP timezone bug.
 
             yield $result;
         }
@@ -211,19 +201,22 @@ class InstanceGenerator
      * Returns a generator that provides instance dates based on the given time zone.
      *
      * @param Rule $rule The iCal RRULE or EXRULE value.
-     * @param DateTimeZone $timezone The timezone context to give all the yielded dates.
+     * @param DateTimeZone $timeZone The timezone context to give all the yielded dates.
      * @param bool $ignoreCounts Ignores the `COUNT` constraint of all rules given. This is useful if the `$seed`
      *   represents a date in the middle of the series and using `COUNT` would be cause for an inaccurate end date.
-     * @return Generator|DateTime[]
+     * @return Generator A generator that yields {@link DateTime} values representing instance start time.
      */
-    private function generateFromRule(Rule $rule, DateTimeZone $timezone, $ignoreCounts = false)
+    private function generateFromRule(Rule $rule, DateTimeZone $timeZone, $ignoreCounts = false)
     {
-        $start = $rule->getStartDate();
+        $start = clone $rule->getStartDate();
         $until = $rule->getUntil();
 
         if (null === $start) {
-            $start = new DateTime('now', $timezone);
+            $start = new DateTime('now', $timeZone);
         }
+
+        $start->setTimezone($timeZone);
+        $start->getTimestamp(); // Fixes PHP timezone bug.
 
         $startDay          = $start->format('j');
 

@@ -100,6 +100,7 @@ class ArrayTransformer
 
         if (null === $start) {
             $start = new DateTime('now', $until instanceof \DateTime ? $until->getTimezone() : null);
+            $rule->setStartDate($start);
         }
 
         if (null === $rule) {
@@ -113,7 +114,7 @@ class ArrayTransformer
         $durationInterval = $start->diff($end);
 
         $instance_generator = $this->generator->generate(
-            $start,
+            $start->getTimezone(),
             [$rule],
             array_map(function (DateInclusion $date) {
                 return $date->date;
