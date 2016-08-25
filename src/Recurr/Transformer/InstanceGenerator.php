@@ -20,7 +20,6 @@ use Generator;
 use Recurr\DateUtil;
 use Recurr\Exception\MissingData;
 use Recurr\Frequency;
-use Recurr\RecurrenceCollection;
 use Recurr\Rule;
 use Recurr\Time;
 use Recurr\Weekday;
@@ -79,17 +78,17 @@ class InstanceGenerator
         }
 
         // An array to hold all the generators for dates that we'll include.
-        $r_generators = [];
+        $rGenerators = [];
 
         // An array to hold all the generators for dates that we'll exclude.
-        $ex_generators = [];
+        $exGenerators = [];
 
         // Add a generator for the RDATE collection
-        $r_generators[] = $this->generateFromDates($rdates, $timeZone);
+        $rGenerators[] = $this->generateFromDates($rdates, $timeZone);
 
         // Add a generator for each RRULE
         foreach ($rrules as $rrule) {
-            $r_generators[] = $this->generateFromRule(
+            $rGenerators[] = $this->generateFromRule(
                 $rrule,
                 $timeZone,
                 $ignoreCounts
@@ -97,11 +96,11 @@ class InstanceGenerator
         }
 
         // Add a generator for the EXDATE collection
-        $ex_generators[] = $this->generateFromDates($exdates, $timeZone);
+        $exGenerators[] = $this->generateFromDates($exdates, $timeZone);
 
         // Add a generator for each EXRULE
         foreach ($exrules as $exrule) {
-            $ex_generators[] = $this->generateFromRule(
+            $exGenerators[] = $this->generateFromRule(
                 $exrule,
                 $timeZone,
                 $ignoreCounts
@@ -111,65 +110,74 @@ class InstanceGenerator
         $iterations = 0;
 
         do {
+            /** @var Generator $generator */
+
             // Holds the next date provided by each `$r_generators`
-            $r_dates = [];
 
-            /** @type Generator $generator */
-            foreach ($r_generators as $key => $generator) {
+            $rDates = [];
+
+            $rGeneratorsToKeep = [];
+
+            foreach ($rGenerators as $key => $generator) {
                 if (!$generator->valid()) {
-                    // This generator has reached it's end... Unset if from our array and continue.
-                    unset($r_generators[$key]);
-
+                    // This generator has reached it's end... Skip it and don't keep it.
                     continue;
                 }
 
-                $r_dates[] = $generator->current();
+                $rDates[] = $generator->current();
+                $rGeneratorsToKeep[] = $generator;
             }
 
-            if (empty($r_dates)) {
+            $rGenerators = $rGeneratorsToKeep;
+
+            if (empty($rDates)) {
                 // No next date could be found, so we're done here.
                 break;
             }
 
             // Get the lowest of all the `$r_dates` This is the "next" instance date for the series, so long as
             // it's not also found in with the EXDATES or the EXRULEs.
-            $min_r_date = $this->minDate($r_dates);
+            $minRDate = $this->minDate($rDates);
 
             $dateIsExcluded = false;
 
-            foreach ($ex_generators as $key => $generator) {
-                if (!$generator->valid()) {
-                    // This generator has reached it's end... Unset if from our array and continue.
-                    unset($ex_generators[$key]);
+            $exGeneratorsToKeep = [];
 
+            foreach ($exGenerators as $generator) {
+                if (!$generator->valid()) {
+                    // This generator has reached it's end... Skip it and don't keep it.
                     continue;
                 }
 
                 // Iterate through all exdates until we reach the `$min_r_date`
-                while ($generator->valid() && $generator->current()->getTimestamp() < $min_r_date->getTimestamp()) {
+                while ($generator->valid() && $generator->current()->getTimestamp() < $minRDate->getTimestamp()) {
                     $generator->next();
                 }
 
                 // If the current EXDATE matches the current `$min_r_date`, then the date should be excluded from the
                 // series.
-                if ($generator->valid() && $generator->current()->getTimestamp() === $min_r_date->getTimestamp()) {
+                if ($generator->valid() && $generator->current()->getTimestamp() === $minRDate->getTimestamp()) {
                     $dateIsExcluded = true;
                 }
+
+                $exGeneratorsToKeep[] = $generator;
             }
+
+            $exGenerators = $exGeneratorsToKeep;
 
             if (!$dateIsExcluded) {
                 $iterations++;
-                yield $min_r_date;
+                yield $minRDate;
             }
 
-            foreach ($r_generators as $generator) {
+            foreach ($rGenerators as $generator) {
                 // Advance all the `$r_generators` that yielded the previous result.
-                if ($generator->current()->getTimestamp() === $min_r_date->getTimestamp()) {
+                if ($generator->current()->getTimestamp() === $minRDate->getTimestamp()) {
                     $generator->next();
                 }
             }
             // Keep looping so long as the `$r_generators` are yielding dates and we're under the iteration limit.
-        } while (!empty($r_generators) && (null === $iterationLimit || $iterations < $iterationLimit));
+        } while (!empty($rGenerators) && (null === $iterationLimit || $iterations < $iterationLimit));
 
     }
 
