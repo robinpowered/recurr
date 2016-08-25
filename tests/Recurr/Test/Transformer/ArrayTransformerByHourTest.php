@@ -139,21 +139,4 @@ class ArrayTransformerByHourTest extends ArrayTransformerBase
         $this->assertEquals(new \DateTime('2020-02-29 15:00:00'), $computed[3]->getStart());
         $this->assertEquals(new \DateTime('2024-02-29 14:00:00'), $computed[4]->getStart());
     }
-
-    public function testYearlyOnLeapYearWithLastDayOfMonthFix()
-    {
-        $transformerConfig = new ArrayTransformerConfig();
-        $transformerConfig->enableLastDayOfMonthFix();
-        $this->transformer->setConfig($transformerConfig);
-
-        $rule = new Rule('FREQ=YEARLY;COUNT=5;BYHOUR=14,15', new \DateTime('2016-02-29 12:00:00'));
-        $computed = $this->transformer->transform($rule);
-
-        $this->assertCount(5, $computed);
-        $this->assertEquals(new \DateTime('2016-02-29 14:00:00'), $computed[0]->getStart());
-        $this->assertEquals(new \DateTime('2016-02-29 15:00:00'), $computed[1]->getStart());
-        $this->assertEquals(new \DateTime('2017-02-28 14:00:00'), $computed[2]->getStart());
-        $this->assertEquals(new \DateTime('2017-02-28 15:00:00'), $computed[3]->getStart());
-        $this->assertEquals(new \DateTime('2018-02-28 14:00:00'), $computed[4]->getStart());
-    }
 }
